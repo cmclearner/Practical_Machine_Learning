@@ -1,0 +1,156 @@
+---
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Practical Machin Learning Project: How well people exercise.
+Clara Myonghee Choi
+June 2, 2019
+
+### Data Source:
+
+training data set: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+testing data set: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The above two data sets for the project come from this source: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har.
+
+### Executive Summary:
+
+This project studies on human activity data (exercise data) to predict the manner in which people did the exercise.
+
+Steps taken:
+
+- Cleaned both training and testing datasets: Removed variables which have more than 80% of missing data, and first seven categorical ones which are not to be used as predictors.
+
+- Split training data: fitTraining 75% vs fitTesting 25% (for cross validation)
+
+- Build a first model with a random forest method.
+
+- Build a second model with a decision tree method.
+
+I have found that the accuracy for a random forest model is a lot higher than a decision tree model.
+
+### Data Processing:
+
+```{r}
+
+library(knitr)
+
+## Load datasets:
+
+training <- read.csv("training.csv")
+
+testing <- read.csv("testing.csv")
+
+dim(training)
+dim(testing)
+
+library(caret)
+
+library(kernlab)
+
+## remove variables with more than 80% of missing data rate:
+
+training[training==""] <- NA
+naPercent <- apply(training, 2, function(x) sum(is.na(x)))/nrow(training)
+training <- training[!(naPercent > 0.80)]
+
+testing[testing==""] <- NA
+naPercent2 <- apply(testing, 2, function(x) sum(is.na(x)))/nrow(testing)
+testing <- testing[!(naPercent2 > 0.80)]
+
+dim(training)
+dim(testing)
+
+## first 7 variables are not predictors, and so are to be eliminated
+
+training <- training[,-(1:7)]
+testing <- testing[,-(1:7)]
+
+dim(training)
+dim(testing)
+```
+
+### Split training data:
+
+```{r}
+
+## Split training data: 75% (training) vs 25% (testing for cross validation)
+
+inTrain <- createDataPartition(y=training$classe, p=0.75, list=FALSE)
+
+fitTraining <- training[inTrain,]
+fitTesting <- training[-inTrain,]
+
+dim(fitTraining)
+
+dim(fitTesting)
+```
+
+
+### Build a model with a random forest method:
+
+```{r}
+
+library(randomForest)
+
+set.seed(12345)
+
+modelFit <- randomForest(classe ~ ., data=fitTraining, method="class")
+
+modelFit
+
+## build a prediction model
+
+premodelFit <- predict(modelFit, fitTesting, type="class")
+
+
+## Test results on fitTesting dataset.
+
+confusionMatrix(premodelFit, fitTesting$classe)
+```
+
+
+### Build a decision tree model:
+
+```{r}
+library(rpart)
+library(RColorBrewer)
+library(rattle)
+
+modelFitDT <- rpart(classe ~ ., data=fitTraining, method="class")
+
+fancyRpartPlot(modelFitDT)
+
+## build a prediction model
+
+premodelFitDT <- predict(modelFitDT, fitTesting, type="class")
+
+## Test results on fitTesting dataset.
+
+confusionMatrix(premodelFitDT, fitTesting$classe)
+```
+
+### Results:
+
+The random forest model has about 99% of accuracy, whereas the deciion tree model does about 72%.This means that the expected out of sample error rates are around 0.5% for the first model, and around 28% for the second one, Also the sensitivity and specificity results for the RF model are over 99% for all five classes.
+
+
+### Test a superior model (the random forest model) on testing dataset:
+
+```{r}
+## Test a random forest model on 20 different test cases.
+
+premodelFitTest <- predict(modelFit, testing, type="class")
+
+premodelFitTest
+
+```
+
+### Reference:
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013. 
+
+
+
